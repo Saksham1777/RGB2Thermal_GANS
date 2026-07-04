@@ -1,0 +1,73 @@
+# ==========================
+# Virtual Environments
+# ==========================
+gans_env/
+.venv/
+venv/
+
+# ==========================
+# Personal Notes
+# ==========================
+venv_notes.txt
+
+# ==========================
+# Dataset
+# ==========================
+data/
+datasets/
+
+# ==========================
+# Python
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ==========================
+# Jupyter
+# ==========================
+.ipynb_checkpoints/
+
+# ==========================
+# VS Code
+# ==========================
+.vscode/
+
+# ==========================
+# Model Checkpoints
+# ==========================
+checkpoints/
+weights/
+runs/
+models/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# ==========================
+# Outputs
+# ==========================
+outputs/
+results/
+logs/
+
+# TensorBoard
+events.out.tfevents.*
+
+# ==========================
+# Images Generated During Training
+# ==========================
+generated/
+samples/
+
+# ==========================
+# Environment Files
+# ==========================
+.env
+
+# ==========================
+# OS Files
+# ==========================
+.DS_Store
+Thumbs.db
