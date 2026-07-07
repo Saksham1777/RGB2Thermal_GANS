@@ -46,6 +46,5 @@ class LLVIPDataset(Dataset):
     
     
     
-class transform():
-    """Transform data to the same dimension"""
+
 
