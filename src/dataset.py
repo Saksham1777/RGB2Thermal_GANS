@@ -33,7 +33,7 @@ class LLVIPDataset(Dataset):
     def __len__(self):
         return self.len_rgb
         
-    
+
     def __getitem__(self, index):
         
         rgb_file = os.path.join(self.rgb_path, self.rgb_list[index])

@@ -39,7 +39,7 @@ __pycache__/
 checkpoints/
 weights/
 runs/
-models/
+saved_models/
 *.pt
 *.pth
 *.ckpt
@@ -71,3 +71,6 @@ samples/
 # ==========================
 .DS_Store
 Thumbs.db
+
+# notes files
+/git_to_be_ignored
