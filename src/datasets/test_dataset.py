@@ -2,7 +2,7 @@ import os
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
-from src.dataset import LLVIPDataset
+from datasets.dataset import LLVIPDataset
 
 data = LLVIPDataset(train = True)
 
