@@ -3,12 +3,12 @@ from PIL import Image
 import torch
 from torch.utils.data import Dataset
 
-
 class LLVIPDataset(Dataset):
     """Custom Dataset for the LLVIP RGB-Thermal dataset."""
 
-    def __init__(self, train = True):
-        
+    def __init__(self, train = True, transform = None):
+
+        self.transform = transform
         dataset_path = os.path.dirname(__file__)
         self.base_path = os.path.dirname(dataset_path)
         self.data_path = os.path.join(self.base_path, "data")
@@ -41,6 +41,9 @@ class LLVIPDataset(Dataset):
          
         rgb_image = Image.open(rgb_file)
         thermal_image = Image.open(thermal_file)
+
+        if self.transform:
+            rgb_image, thermal_image = self.transform(rgb_image, thermal_image)
 
         return rgb_image, thermal_image
     
