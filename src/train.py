@@ -1,4 +1,5 @@
 import torch
+import os
 from models.discriminator import Discriminator
 from models.generator import Generator
 from training.losses import GenLoss, DiscLoss
@@ -15,6 +16,8 @@ def train():
         learning_rate = 0.0002 # place holder since we will use adam right?
         lambda_l1 = 100 # placeholder
 
+        os.makedirs("saved_models", exist_ok=True)
+
         transform = PairedTransform ([
                         ToTensor(),
                         Normalize() #need values - added tools file for this
@@ -25,6 +28,7 @@ def train():
                 train=True,
                 transform=transform
                 )
+        # batch of 64 of (rgb_batch, thermal_batch)
 
         train_dataloader = DataLoader(
                 train_dataset, 
@@ -51,8 +55,8 @@ def train():
         discriminator = Discriminator().to(device)
 
 
-        gen_loss = GenLoss(lambda_l1=lambda_l1)
-        disc_loss = DiscLoss()
+        gen_loss_fn = GenLoss(lambda_l1=lambda_l1).to(device)
+        disc_loss_fn = DiscLoss().to(device)
 
         optimizer_G = Adam(
                 generator.parameters(),
@@ -65,3 +69,72 @@ def train():
                 lr=learning_rate,
                 betas=(0.5, 0.999)
         )
+
+        generator.train()
+        discriminator.train()  
+
+        for epoch in range(epochs):
+                for batch_idx, (rgb, thermal) in enumerate(train_dataloader):
+
+                        # keep image and model on same device
+                        rgb = rgb.to(device)
+                        thermal = thermal.to(device)
+
+                        fake_thermal = generator(rgb)
+
+                        score_real = discriminator(rgb, thermal)
+
+                        # Evaluate the discriminator on a generated RGB-Thermal pair.
+                        # detach() prevents gradients from flowing back into the generator
+                        # while we are training only the discriminator.
+                        score_fake = discriminator(rgb, fake_thermal.detach())
+                        
+                        # Compute how well the discriminator distinguished
+                        # real pairs from generated pairs.
+                        disc_loss = disc_loss_fn(score_real, score_fake) 
+
+                        # Remove gradients accumulated from the previous iteration.
+                        optimizer_D.zero_grad()
+
+                        # Compute gradients for the discriminator parameters.
+                        disc_loss.backward()
+
+                        # Update only the discriminator weights using Adam.
+                        optimizer_D.step()
+
+                        # re score using on new discriminator (new weights),
+                        # not detaching so that we can train genrator
+                        score_fake = discriminator(rgb, fake_thermal)
+
+                        gen_loss = gen_loss_fn(score_fake, fake_thermal, thermal)
+
+                        optimizer_G.zero_grad()
+
+                        gen_loss.backward()
+
+                        optimizer_G.step()
+
+                        if batch_idx % 10 == 0:
+                                print(
+                                        f"Epoch [{epoch+1}/{epochs}] "
+                                        f"Batch [{batch_idx}/{len(train_dataloader)}] "
+                                        f"D Loss: {disc_loss.item():.4f} "
+                                        f"G Loss: {gen_loss.item():.4f}"
+                                )                        
+
+                if (epoch + 1) % 25 == 0 or (epoch + 1) == epochs:
+                        torch.save(
+                                generator.state_dict(),
+                                f"saved_models/generator_epoch_{epoch+1}.pth"
+                        )
+
+                        torch.save(
+                                discriminator.state_dict(),
+                                f"saved_models/discriminator_epoch_{epoch+1}.pth"
+                        )
+
+                        
+
+        # tensorboard - to do!!!!!
+if __name__ == "__main__":
+    train()
