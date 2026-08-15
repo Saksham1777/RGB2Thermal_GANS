@@ -35,6 +35,7 @@ def compute_stats(folder_path, mode):
 
         else:
             image_array = image_array.reshape(-1, 1) # h x w
+            
 
         if pixel_sum is None:
             pixel_sum = np.zeros(image_array.shape[1])
