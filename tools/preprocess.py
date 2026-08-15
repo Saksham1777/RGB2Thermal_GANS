@@ -32,24 +32,39 @@ processed_thermal_test = os.path.join(processed_thermal_path, "test")
 
 
 def resize(image):
-    
-    return image.resize(size = (256,256), resample = Image.LANCZOS)
+    return image.resize(
+        size=(256, 256),
+        resample=Image.LANCZOS
+    )
+
 
 def process_folder(input_path, output_path):
+
+    os.makedirs(output_path, exist_ok=True)
+
     image_list = sorted(os.listdir(input_path))
 
     for image in image_list:
-        image_path = os.path.join(image_list, "image")
+
+        image_path = os.path.join(input_path, image)
+
         img = Image.open(image_path)
         img = resize(img)
 
         save_path = os.path.join(output_path, image)
         img.save(save_path)
 
+        img.close()
+
+
 def main():
+
     process_folder(rgb_train, processed_rgb_train)
     process_folder(rgb_test, processed_rgb_test)
 
     process_folder(thermal_train, processed_thermal_train)
     process_folder(thermal_test, processed_thermal_test)
 
+
+if __name__ == "__main__":
+    main()

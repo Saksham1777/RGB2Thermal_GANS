@@ -73,7 +73,16 @@ def train():
         generator.train()
         discriminator.train()  
 
+        
+
+        all_d_losses = []
+        all_g_losses = []
+
         for epoch in range(epochs):
+
+                epoch_d_losses = []
+                epoch_g_losses = []
+
                 for batch_idx, (rgb, thermal) in enumerate(train_dataloader):
 
                         # keep image and model on same device
@@ -114,13 +123,19 @@ def train():
 
                         optimizer_G.step()
 
+                        epoch_d_losses.append(disc_loss.item())
+                        epoch_g_losses.append(gen_loss.item())
+
                         if batch_idx % 10 == 0:
                                 print(
                                         f"Epoch [{epoch+1}/{epochs}] "
                                         f"Batch [{batch_idx}/{len(train_dataloader)}] "
                                         f"D Loss: {disc_loss.item():.4f} "
                                         f"G Loss: {gen_loss.item():.4f}"
-                                )                        
+                                )  
+
+                all_d_losses.append(sum(epoch_d_losses) / len(epoch_d_losses))
+                all_g_losses.append(sum(epoch_g_losses) / len(epoch_g_losses))                     
 
                 if (epoch + 1) % 25 == 0 or (epoch + 1) == epochs:
                         torch.save(
