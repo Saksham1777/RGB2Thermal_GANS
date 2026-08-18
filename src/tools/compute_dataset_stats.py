@@ -1,11 +1,21 @@
 from pathlib import Path
 from PIL import Image
 import numpy as np
+import os
 
 # only done for training images. never done for test.
 # FIX HERE: point these to the RESIZED training folders.
-RGB_TRAIN_PATH = Path(r"...")
-THERMAL_TRAIN_PATH = Path(r"...")
+file_path = os.path.dirname(__file__) #src/tools/compute....py
+base_path = os.path.dirname(os.path.dirname(file_path)) # root 
+
+# Processed dataset
+processed_data_path = os.path.join(base_path, "processed_data")
+
+processed_rgb_path = os.path.join(processed_data_path, "visible")
+processed_thermal_path = os.path.join(processed_data_path, "infrared")
+
+RGB_TRAIN_PATH = os.path.join(processed_rgb_path, "train")
+THERMAL_TRAIN_PATH = os.path.join(processed_thermal_path, "train")
 
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp"}
