@@ -14,7 +14,7 @@ venv_notes.txt
 # Dataset
 # ==========================
 data/
-
+processed_data/
 
 # ==========================
 # Python
