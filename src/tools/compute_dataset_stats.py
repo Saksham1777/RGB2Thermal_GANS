@@ -1,13 +1,14 @@
 from pathlib import Path
 from PIL import Image
 import numpy as np
+import json
 
 # only done for training images. never done for test.
 # FIX HERE: point these to the RESIZED training folders.
 RGB_TRAIN_PATH = Path(r"...")
 THERMAL_TRAIN_PATH = Path(r"...")
 
-
+STATS_PATH = Path(__file__).parent / "normalization_stats.json"
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp"}
 
 
@@ -34,7 +35,7 @@ def compute_stats(folder_path, mode):
             image_array = image_array.reshape(-1, 3) # h x w x 3 
 
         else:
-            image_array = image_array.reshape(-1, 1) # h x w
+            image_array = image_array.reshape(-1, 1) # h x w x 1
             
 
         if pixel_sum is None:
@@ -54,6 +55,11 @@ def compute_stats(folder_path, mode):
 
 def main():
 
+    if STATS_PATH.exists():
+        print(f"Statistics file already exists: {STATS_PATH}")
+        print("Skipping calculation.")
+        return
+
     rgb_mean, rgb_std = compute_stats(
         RGB_TRAIN_PATH,
         mode="RGB"
@@ -65,15 +71,17 @@ def main():
         # mode L means single channel grayscale image (pil)
     )
 
-    print("RGB statistics:")
-    print("Mean:", rgb_mean)
-    print("Std: ", rgb_std)
+    stats = {
+        "rgb_mean": rgb_mean.tolist(),
+        "rgb_std": rgb_std.tolist(),
+        "thermal_mean": thermal_mean.tolist(),
+        "thermal_std": thermal_std.tolist()
+    }
 
-    print()
+    with open(STATS_PATH, "w") as file:
+        json.dump(stats, file, indent=4)
 
-    print("Thermal statistics:")
-    print("Mean:", thermal_mean)
-    print("Std: ", thermal_std)
+    print(f"Statistics saved to: {STATS_PATH}")
 
 
 if __name__ == "__main__":

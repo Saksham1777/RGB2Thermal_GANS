@@ -7,8 +7,11 @@ from datasets.transform import PairedTransform, ToTensor, Normalize
 from datasets.dataset import LLVIPDataset
 from torch.utils.data import DataLoader
 from torch.optim import Adam
+from torch.utils.tensorboard import SummaryWriter
 
 def train():
+
+        writer = SummaryWriter("runs/rgb2thermal")
 
         device = torch.device( "cuda" if torch.cuda.is_available() else "cpu")
         batch_size = 64 #we can decide thi
@@ -134,8 +137,14 @@ def train():
                                         f"G Loss: {gen_loss.item():.4f}"
                                 )  
 
-                all_d_losses.append(sum(epoch_d_losses) / len(epoch_d_losses))
-                all_g_losses.append(sum(epoch_g_losses) / len(epoch_g_losses))                     
+                avg_d_loss = sum(epoch_d_losses) / len(epoch_d_losses)
+                avg_g_loss = sum(epoch_g_losses) / len(epoch_g_losses)
+
+                all_d_losses.append(avg_d_loss)
+                all_g_losses.append(avg_g_loss)
+
+                writer.add_scalar("Loss/Discriminator", avg_d_loss, epoch + 1)
+                writer.add_scalar("Loss/Generator", avg_g_loss, epoch + 1)                  
 
                 if (epoch + 1) % 25 == 0 or (epoch + 1) == epochs:
                         torch.save(
@@ -148,8 +157,8 @@ def train():
                                 f"saved_models/discriminator_epoch_{epoch+1}.pth"
                         )
 
-                        
+        writer.close()                
 
-        # tensorboard - to do!!!!!
+        
 if __name__ == "__main__":
     train()
