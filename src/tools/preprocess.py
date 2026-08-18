@@ -1,9 +1,9 @@
 import os
 from PIL import Image
+import time
 
-
-file_path = os.path.dirname(__file__)
-base_path = os.path.dirname(file_path)
+file_path = os.path.dirname(__file__) #src/tools/preprocess.py
+base_path = os.path.dirname(os.path.dirname(file_path)) # root 
 
 # Original dataset
 data_path = os.path.join(base_path, "data")
@@ -40,22 +40,53 @@ def resize(image):
 
 def process_folder(input_path, output_path):
 
+    #print("INPUT:", input_path)
+    #print("ABSOLUTE:", os.path.abspath(input_path))
+    #print("EXISTS:", os.path.exists(input_path))
+
+    if not os.path.exists(input_path):
+        print("preprocess - input path problem")
+        return
+    
     os.makedirs(output_path, exist_ok=True)
 
     image_list = sorted(os.listdir(input_path))
+    total = len(image_list)
+    start_time = time.time()
 
-    for image in image_list:
+    for i, image in enumerate(image_list, 1):
 
         image_path = os.path.join(input_path, image)
 
-        img = Image.open(image_path)
-        img = resize(img)
+        if not os.path.isfile(image_path):
+            continue
 
-        save_path = os.path.join(output_path, image)
-        img.save(save_path)
+        try:
+            img = Image.open(image_path)
+            img = resize(img)
 
-        img.close()
+            save_path = os.path.join(output_path, image)
+            img.save(save_path)
 
+            img.close()
+
+        except Exception as e: 
+            print(f"error: {e}")
+
+        if i % 100 == 0 or i == total:
+            elapsed = time.time() - start_time
+            rate = i / elapsed
+            remaining = total - i
+            eta = remaining / rate if rate > 0 else 0
+
+            print(
+                f"\rProcessed: {i}/{total} "
+                f"({i / total * 100:.1f}%) | "
+                f"Elapsed: {elapsed:.1f}s | "
+                f"Rate: {rate:.1f} img/s | "
+                f"ETA: {eta:.1f}s",
+                end=""
+            )
 
 def main():
 
