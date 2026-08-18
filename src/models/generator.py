@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from src.models.blocks import ConvBlock, DecoderBlock
+from .blocks import ConvBlock, DecoderBlock
 
 
 class Generator(nn.Module):
@@ -61,13 +61,13 @@ class Generator(nn.Module):
 
         # Decoder
         d1 = self.decoder1(b)
-        d2 = self.decoder2(nn.cat([d1, e7], dim=1))
-        d3 = self.decoder3(nn.cat([d2, e6], dim=1))
-        d4 = self.decoder4(nn.cat([d3, e5], dim=1))
-        d5 = self.decoder5(nn.cat([d4, e4], dim=1))
-        d6 = self.decoder6(nn.cat([d5, e3], dim=1))
-        d7 = self.decoder7(nn.cat([d6, e2], dim=1))
+        d2 = self.decoder2(torch.cat([d1, e7], dim=1))
+        d3 = self.decoder3(torch.cat([d2, e6], dim=1))
+        d4 = self.decoder4(torch.cat([d3, e5], dim=1))
+        d5 = self.decoder5(torch.cat([d4, e4], dim=1))
+        d6 = self.decoder6(torch.cat([d5, e3], dim=1))
+        d7 = self.decoder7(torch.cat([d6, e2], dim=1))
 
-        out = self.final(nn.cat([d7, e1], dim=1))
+        out = self.final(torch.cat([d7, e1], dim=1))
 
         return out

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from src.models.blocks import ConvBlock
+from .blocks import ConvBlock
 
 class Discriminator(nn.Module):
 
