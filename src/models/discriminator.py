@@ -10,7 +10,7 @@ class Discriminator(nn.Module):
         self.disc1 = ConvBlock(4,64,batch_norm=False)
         self.disc2 = ConvBlock(64,128)
         self.disc3 = ConvBlock(128,256)
-        self.disc4 = ConvBlock(256, 512)
+        self.disc4 = ConvBlock(256, 512, stride=1) # PatchGAN stride
 
         self.dic_final = nn.Conv2d(
             in_channels = 512,

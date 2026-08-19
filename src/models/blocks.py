@@ -13,16 +13,22 @@ class ConvBlock(nn.Module):
         negative_slope=0.2,
     ):
         super().__init__()
-        layers = [] # store the layer objects
-
-        conv_layer = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
-        layers.append(conv_layer)
+        layers = [
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size,
+                stride,
+                padding,
+                bias = not batch_norm, # Conv bias is redundant when BatchNorm is active
+            )
+        ] 
 
         if batch_norm:
-            batch_layer = nn.BatchNorm2d(out_channels)
-            layers.append(batch_layer)
-        
+                    batch_layer = nn.BatchNorm2d(out_channels)
+                    layers.append(batch_layer)      
 
+        # Activation Layer
         activation_layer = nn.LeakyReLU(negative_slope=negative_slope, inplace=True)
         layers.append(activation_layer)
 
@@ -40,19 +46,30 @@ class DecoderBlock(nn.Module):
         stride=2,
         padding=1,
         batch_norm=True,
+        use_dropout = False
         ):
         super().__init__()
-        layers = []
-
-        conv_layer = nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding)
-        layers.append(conv_layer)
+        layers = [
+             nn.ConvTranspose2d(
+                in_channels,
+                out_channels,
+                kernel_size,
+                stride,
+                padding,
+                bias=not batch_norm,
+            )
+        ]
 
         if batch_norm:
-            batch_layer = nn.BatchNorm2d(out_channels)
-            layers.append(batch_layer)
+                    batch_layer = nn.BatchNorm2d(out_channels)
+                    layers.append(batch_layer)
         
+        # Activation Layer
         activation_layer = nn.ReLU(inplace=True)
         layers.append(activation_layer)
+
+        if use_dropout:
+            layers.append(nn.Dropout(0.5))
 
         self.block = nn.Sequential(*layers)
 

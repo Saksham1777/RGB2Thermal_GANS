@@ -54,7 +54,3 @@ class LLVIPDataset(Dataset):
 
         return rgb_image, thermal_image
     
-    
-    
-
-

@@ -43,13 +43,15 @@ def train():
     thermal_mean = stats["thermal_mean"]
     thermal_std = stats["thermal_std"]
 
+    # Replace custom json stats with fixed 0.5 scaling for [-1, 1] range
+    # doing to match tanh at end of genrator.
     transform = PairedTransform([
         ToTensor(),
         Normalize(
-            rgb_mean=rgb_mean,
-            rgb_std=rgb_std,
-            thermal_mean=thermal_mean,
-            thermal_std=thermal_std
+            rgb_mean=[0.5, 0.5, 0.5],
+            rgb_std=[0.5, 0.5, 0.5],
+            thermal_mean=[0.5],
+            thermal_std=[0.5]
         )
     ])
 
@@ -180,13 +182,11 @@ def train():
             # Log un-normalized visual comparison to TensorBoard every 5 epochs
             if (epoch + 1) % 5 == 0:
                 with torch.no_grad():
-                    rgb_vis = rgb[:4].clone().cpu()
-                    for c in range(3):
-                        rgb_vis[:, c] = rgb_vis[:, c] * rgb_std[c] + rgb_mean[c]
-
-                    thermal_vis = thermal[:4].clone().cpu() * thermal_std[0] + thermal_mean[0]
-                    fake_vis = fake_thermal[:4].clone().detach().cpu() * thermal_std[0] + thermal_mean[0]
-
+                    # Un-normalize from [-1, 1] back to [0, 1]
+                    rgb_vis = rgb[:4].detach().cpu() * 0.5 + 0.5
+                    thermal_vis = thermal[:4].detach().cpu() * 0.5 + 0.5
+                    fake_vis = fake_thermal[:4].detach().cpu() * 0.5 + 0.5
+                    
                     writer.add_images("RGB_Input", torch.clamp(rgb_vis, 0, 1), epoch + 1)
                     writer.add_images("Thermal_Real", torch.clamp(thermal_vis, 0, 1), epoch + 1)
                     writer.add_images("Thermal_Generated", torch.clamp(fake_vis, 0, 1), epoch + 1)

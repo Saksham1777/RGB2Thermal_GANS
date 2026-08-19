@@ -25,9 +25,9 @@ class Generator(nn.Module):
         )
         
         # Decoder
-        self.decoder1 = DecoderBlock(512, 512)
-        self.decoder2 = DecoderBlock(1024, 512)
-        self.decoder3 = DecoderBlock(1024, 512)
+        self.decoder1 = DecoderBlock(512, 512, use_dropout=True)
+        self.decoder2 = DecoderBlock(1024, 512, use_dropout=True)
+        self.decoder3 = DecoderBlock(1024, 512, use_dropout=True)
         self.decoder4 = DecoderBlock(1024, 512)
         self.decoder5 = DecoderBlock(1024, 256)
         self.decoder6 = DecoderBlock(512, 128)

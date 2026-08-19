@@ -34,4 +34,4 @@ class DiscLoss(nn.Module):
         real_loss = self.bce(disc_real, ones)
         fake_loss = self.bce(disc_fake, zeros)
 
-        return fake_loss + real_loss
+        return 0.5 * (fake_loss + real_loss)
