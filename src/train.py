@@ -26,7 +26,8 @@ def train():
 
     batch_size = 8          # Fits safely inside 4GB VRAM
     epochs = 100
-    learning_rate = 0.0002
+    g_learning_rate = 0.0002
+    d_learning_rate = 0.0002
     lambda_l1 = 100
 
     os.makedirs("saved_models", exist_ok=True)
@@ -72,8 +73,8 @@ def train():
     gen_loss_fn = GenLoss(lambda_l1=lambda_l1).to(device)
     disc_loss_fn = DiscLoss().to(device)
 
-    optimizer_G = Adam(generator.parameters(), lr=learning_rate, betas=(0.5, 0.999))
-    optimizer_D = Adam(discriminator.parameters(), lr=learning_rate, betas=(0.5, 0.999))
+    optimizer_G = Adam(generator.parameters(), lr=g_learning_rate, betas=(0.5, 0.999))
+    optimizer_D = Adam(discriminator.parameters(), lr=d_learning_rate, betas=(0.5, 0.999))
 
     # Automatic Mixed Precision (AMP) scalers for 16-bit float execution
     scaler_G = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda"))
@@ -186,7 +187,7 @@ def train():
                     rgb_vis = rgb[:4].detach().cpu() * 0.5 + 0.5
                     thermal_vis = thermal[:4].detach().cpu() * 0.5 + 0.5
                     fake_vis = fake_thermal[:4].detach().cpu() * 0.5 + 0.5
-                    
+
                     writer.add_images("RGB_Input", torch.clamp(rgb_vis, 0, 1), epoch + 1)
                     writer.add_images("Thermal_Real", torch.clamp(thermal_vis, 0, 1), epoch + 1)
                     writer.add_images("Thermal_Generated", torch.clamp(fake_vis, 0, 1), epoch + 1)

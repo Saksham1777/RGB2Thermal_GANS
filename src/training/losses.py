@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class GenLoss(nn.Module):
-    def __init__(self, lambda_l1=100):
+    def __init__(self, lambda_l1=30):
         super().__init__()
         self.lambda_l1  = lambda_l1
         self.bce = nn.BCEWithLogitsLoss()
