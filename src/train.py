@@ -31,7 +31,7 @@ def train():
     g_learning_rate = 0.0002
     d_learning_rate = 0.0001
     
-    lambda_content = 50.0   # Balanced content weight (L1 + SSIM)
+    lambda_content = 20.0   # Balanced content weight (L1 + SSIM)
 
     os.makedirs("saved_models", exist_ok=True)
 
@@ -66,7 +66,7 @@ def train():
     generator = Generator().to(device)
     discriminator = Discriminator().to(device)
 
-    gen_loss_fn = GenLoss(lambda_content=lambda_content, ssim_weight=0.5).to(device)
+    gen_loss_fn = GenLoss(lambda_content=lambda_content, ssim_weight=0.5, grad_weight=0.2).to(device)
     disc_loss_fn = DiscLoss(label_smoothing=0.9).to(device)
 
     optimizer_G = Adam(generator.parameters(), lr=g_learning_rate, betas=(0.5, 0.999))
