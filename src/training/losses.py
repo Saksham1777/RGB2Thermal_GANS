@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class GenLoss(nn.Module):
-    def __init__(self, lambda_content=50.0, ssim_weight=0.2):
+    def __init__(self, lambda_content=50.0, ssim_weight=0.5):
         super().__init__()
         self.lambda_content = lambda_content
         self.ssim_weight = ssim_weight
