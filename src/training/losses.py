@@ -4,10 +4,11 @@ import torch.nn.functional as F
 
 
 class GenLoss(nn.Module):
-    def __init__(self, lambda_content=50.0, ssim_weight=0.5):
+    def __init__(self, lambda_content=50.0, ssim_weight=0.5, grad_weight=0.2):
         super().__init__()
         self.lambda_content = lambda_content
         self.ssim_weight = ssim_weight
+        self.grad_weight = grad_weight
         self.bce = nn.BCEWithLogitsLoss()
         self.l1 = nn.L1Loss()
 
@@ -28,16 +29,26 @@ class GenLoss(nn.Module):
         )
         return 1.0 - ssim_map.mean()
 
+    def gradient_loss(self, gen, real):
+        """Calculates pixel intensity differences along horizontal and vertical axes (edges)."""
+        dh_gen = torch.abs(gen[:, :, :, 1:] - gen[:, :, :, :-1])
+        dh_real = torch.abs(real[:, :, :, 1:] - real[:, :, :, :-1])
+        dv_gen = torch.abs(gen[:, :, 1:, :] - gen[:, :, :-1, :])
+        dv_real = torch.abs(real[:, :, 1:, :] - real[:, :, :-1, :])
+        return torch.mean(torch.abs(dh_gen - dh_real)) + torch.mean(torch.abs(dv_gen - dv_real))
+
     def forward(self, discriminator_output, generated_thermal, real_thermal):
         # BCE compares discriminator logits against "real" targets
         target = torch.ones_like(discriminator_output)
         gan_loss = self.bce(discriminator_output, target)
 
-        # Hybrid L1 + SSIM Content Loss
         l1_val = self.l1(generated_thermal, real_thermal)
         ssim_val = self.ssim_loss(generated_thermal, real_thermal)
+        grad_val = self.gradient_loss(generated_thermal, real_thermal)
 
-        content_loss = (1.0 - self.ssim_weight) * l1_val + self.ssim_weight * ssim_val
+        # Correctly normalized weights: 30% L1, 50% SSIM, 20% Gradient Difference Loss (Sum = 1.0)
+        l1_weight = 1.0 - (self.ssim_weight + self.grad_weight)
+        content_loss = l1_weight * l1_val + self.ssim_weight * ssim_val + self.grad_weight * grad_val
 
         return gan_loss + self.lambda_content * content_loss
 
