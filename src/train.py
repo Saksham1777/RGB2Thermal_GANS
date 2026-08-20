@@ -26,26 +26,22 @@ def train():
 
     batch_size = 8          # Fits safely inside 4GB VRAM
     epochs = 100
+    
+    # TTUR: Generator learns faster than Discriminator
     g_learning_rate = 0.0002
-    d_learning_rate = 0.0002
-    lambda_l1 = 100
+    d_learning_rate = 0.0001
+    
+    lambda_content = 50.0   # Balanced content weight (L1 + SSIM)
 
     os.makedirs("saved_models", exist_ok=True)
 
-    # Dynamic file path resolution relative to train.py (src/tools/normalization_stats.json)
+    # Dynamic file path resolution relative to train.py
     script_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(script_dir, "tools", "normalization_stats.json")
 
     with open(json_path, "r") as f:
         stats = json.load(f)
 
-    rgb_mean = stats["rgb_mean"]
-    rgb_std = stats["rgb_std"]
-    thermal_mean = stats["thermal_mean"]
-    thermal_std = stats["thermal_std"]
-
-    # Replace custom json stats with fixed 0.5 scaling for [-1, 1] range
-    # doing to match tanh at end of genrator.
     transform = PairedTransform([
         ToTensor(),
         Normalize(
@@ -62,21 +58,20 @@ def train():
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=2,                                       # Keeps CPU usage moderate
-        pin_memory=True if device.type == "cuda" else False  # Fast host-to-GPU transfer
+        num_workers=2,
+        pin_memory=True if device.type == "cuda" else False
     )
 
     # Build models
     generator = Generator().to(device)
     discriminator = Discriminator().to(device)
 
-    gen_loss_fn = GenLoss(lambda_l1=lambda_l1).to(device)
-    disc_loss_fn = DiscLoss().to(device)
+    gen_loss_fn = GenLoss(lambda_content=lambda_content, ssim_weight=0.2).to(device)
+    disc_loss_fn = DiscLoss(label_smoothing=0.9).to(device)
 
     optimizer_G = Adam(generator.parameters(), lr=g_learning_rate, betas=(0.5, 0.999))
     optimizer_D = Adam(discriminator.parameters(), lr=d_learning_rate, betas=(0.5, 0.999))
 
-    # Automatic Mixed Precision (AMP) scalers for 16-bit float execution
     scaler_G = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda"))
     scaler_D = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda"))
 
@@ -91,8 +86,15 @@ def train():
 
         generator.load_state_dict(checkpoint["generator_state_dict"])
         discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
+        
+        # Load optimizer states, updating LR in place
         optimizer_G.load_state_dict(checkpoint["optimizer_G_state_dict"])
         optimizer_D.load_state_dict(checkpoint["optimizer_D_state_dict"])
+        for param_group in optimizer_G.param_groups:
+            param_group['lr'] = g_learning_rate
+        for param_group in optimizer_D.param_groups:
+            param_group['lr'] = d_learning_rate
+
         scaler_G.load_state_dict(checkpoint["scaler_G_state_dict"])
         scaler_D.load_state_dict(checkpoint["scaler_D_state_dict"])
 
@@ -110,14 +112,13 @@ def train():
             epoch_d_losses = []
             epoch_g_losses = []
 
-            # Progress bar with live speed/time readout
             pbar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{epochs}", leave=True)
 
             for batch_idx, (rgb, thermal) in enumerate(pbar):
                 rgb = rgb.to(device, non_blocking=True)
                 thermal = thermal.to(device, non_blocking=True)
 
-                # --- Train Discriminator (Mixed Precision) ---
+                # --- Train Discriminator ---
                 optimizer_D.zero_grad()
 
                 with torch.amp.autocast("cuda", enabled=(device.type == "cuda")):
@@ -130,7 +131,7 @@ def train():
                 scaler_D.step(optimizer_D)
                 scaler_D.update()
 
-                # --- Train Generator (Mixed Precision) ---
+                # --- Train Generator ---
                 optimizer_G.zero_grad()
 
                 with torch.amp.autocast("cuda", enabled=(device.type == "cuda")):
@@ -141,7 +142,7 @@ def train():
                 scaler_G.step(optimizer_G)
                 scaler_G.update()
 
-                # Divergence / NaN Guard
+                # Divergence Guard
                 if torch.isnan(disc_loss) or torch.isnan(gen_loss):
                     print(f"\n[DIVERGENCE ALERT] NaN loss detected at epoch {epoch+1}, batch {batch_idx}! Stopping training.")
                     return
@@ -149,7 +150,6 @@ def train():
                 epoch_d_losses.append(disc_loss.item())
                 epoch_g_losses.append(gen_loss.item())
 
-                # Live progress updates on the tqdm bar
                 pbar.set_postfix({
                     "D_Loss": f"{disc_loss.item():.4f}",
                     "G_Loss": f"{gen_loss.item():.4f}"
@@ -161,7 +161,7 @@ def train():
             writer.add_scalar("Loss/Discriminator", avg_d_loss, epoch + 1)
             writer.add_scalar("Loss/Generator", avg_g_loss, epoch + 1)
 
-            # Save full state checkpoint every epoch for resuming
+            # Save full state checkpoint
             checkpoint_data = {
                 "epoch": epoch + 1,
                 "generator_state_dict": generator.state_dict(),
@@ -174,16 +174,14 @@ def train():
             }
             torch.save(checkpoint_data, resume_path)
 
-            # Save best generator model separately
             if avg_g_loss < best_g_loss:
                 best_g_loss = avg_g_loss
                 checkpoint_data["best_g_loss"] = best_g_loss
                 torch.save(generator.state_dict(), "saved_models/generator_best.pth")
 
-            # Log un-normalized visual comparison to TensorBoard every 5 epochs
+            # TensorBoard logging
             if (epoch + 1) % 5 == 0:
                 with torch.no_grad():
-                    # Un-normalize from [-1, 1] back to [0, 1]
                     rgb_vis = rgb[:4].detach().cpu() * 0.5 + 0.5
                     thermal_vis = thermal[:4].detach().cpu() * 0.5 + 0.5
                     fake_vis = fake_thermal[:4].detach().cpu() * 0.5 + 0.5
@@ -192,7 +190,6 @@ def train():
                     writer.add_images("Thermal_Real", torch.clamp(thermal_vis, 0, 1), epoch + 1)
                     writer.add_images("Thermal_Generated", torch.clamp(fake_vis, 0, 1), epoch + 1)
 
-            # Backup weight checkpoints every 10 epochs
             if (epoch + 1) % 10 == 0 or (epoch + 1) == epochs:
                 torch.save(generator.state_dict(), f"saved_models/generator_epoch_{epoch+1}.pth")
                 torch.save(discriminator.state_dict(), f"saved_models/discriminator_epoch_{epoch+1}.pth")

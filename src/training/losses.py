@@ -1,37 +1,59 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 
 class GenLoss(nn.Module):
-    def __init__(self, lambda_l1=30):
+    def __init__(self, lambda_content=50.0, ssim_weight=0.2):
         super().__init__()
-        self.lambda_l1  = lambda_l1
+        self.lambda_content = lambda_content
+        self.ssim_weight = ssim_weight
         self.bce = nn.BCEWithLogitsLoss()
         self.l1 = nn.L1Loss()
-    
+
+    def ssim_loss(self, img1, img2, window_size=11):
+        """Calculates Structural Similarity (SSIM) loss to enforce edge and structural clarity."""
+        c1 = 0.01 ** 2
+        c2 = 0.03 ** 2
+
+        mu1 = F.avg_pool2d(img1, window_size, stride=1, padding=window_size // 2)
+        mu2 = F.avg_pool2d(img2, window_size, stride=1, padding=window_size // 2)
+
+        sigma1_sq = F.avg_pool2d(img1 * img1, window_size, stride=1, padding=window_size // 2) - mu1.pow(2)
+        sigma2_sq = F.avg_pool2d(img2 * img2, window_size, stride=1, padding=window_size // 2) - mu2.pow(2)
+        sigma12 = F.avg_pool2d(img1 * img2, window_size, stride=1, padding=window_size // 2) - mu1 * mu2
+
+        ssim_map = ((2 * mu1 * mu2 + c1) * (2 * sigma12 + c2)) / (
+            (mu1.pow(2) + mu2.pow(2) + c1) * (sigma1_sq + sigma2_sq + c2)
+        )
+        return 1.0 - ssim_map.mean()
+
     def forward(self, discriminator_output, generated_thermal, real_thermal):
-    
         # BCE compares discriminator logits against "real" targets
         target = torch.ones_like(discriminator_output)
         gan_loss = self.bce(discriminator_output, target)
-        
-        # syntax for l1 loss -> (input, target)
-        l1_loss = self.l1(generated_thermal, real_thermal)
-        
-        return gan_loss + self.lambda_l1 * l1_loss
+
+        # Hybrid L1 + SSIM Content Loss
+        l1_val = self.l1(generated_thermal, real_thermal)
+        ssim_val = self.ssim_loss(generated_thermal, real_thermal)
+
+        content_loss = (1.0 - self.ssim_weight) * l1_val + self.ssim_weight * ssim_val
+
+        return gan_loss + self.lambda_content * content_loss
+
 
 class DiscLoss(nn.Module):
-    def __init__(self,):
+    def __init__(self, label_smoothing=0.9):
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss()
-        
-    # disc_real = disc patch score for real thermal image
-    # disc_fake = disc patch score for genrated thermal image
-    def forward(self,  disc_real, disc_fake):
-        
-        ones = torch.ones_like(disc_real)
-        zeros = torch.zeros_like(disc_fake)
+        self.label_smoothing = label_smoothing
 
-        real_loss = self.bce(disc_real, ones)
-        fake_loss = self.bce(disc_fake, zeros)
+    def forward(self, disc_real, disc_fake):
+        # Use soft labels (0.9 instead of 1.0) to prevent discriminator overconfidence
+        real_targets = torch.full_like(disc_real, self.label_smoothing)
+        fake_targets = torch.zeros_like(disc_fake)
+
+        real_loss = self.bce(disc_real, real_targets)
+        fake_loss = self.bce(disc_fake, fake_targets)
 
         return 0.5 * (fake_loss + real_loss)
