@@ -66,7 +66,7 @@ def train():
     generator = Generator().to(device)
     discriminator = Discriminator().to(device)
 
-    gen_loss_fn = GenLoss(lambda_content=lambda_content, ssim_weight=0.5, grad_weight=0.2).to(device)
+    gen_loss_fn = GenLoss(lambda_content=lambda_content).to(device)
     disc_loss_fn = DiscLoss(label_smoothing=0.9).to(device)
 
     optimizer_G = Adam(generator.parameters(), lr=g_learning_rate, betas=(0.5, 0.999))
